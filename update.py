@@ -2,11 +2,11 @@
 """매일 실행: 온비드 토지 공매 전체 수집 -> 브이월드 도로접면/토지이용계획 조회 -> docs/data.json 생성.
 환경변수: ONBID_KEY, VWORLD_KEY (GitHub Secrets), 선택: VWORLD_DOMAIN, MAX_LOOKUPS(하루 조회 상한, 기본 3000)
 """
-import datetime, json, os, re, sys, time, urllib.parse, urllib.request
+import datetime, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 from collections import defaultdict
 
-ONBID_KEY = os.environ.get("ONBID_KEY", "")
-VWORLD_KEY = os.environ.get("VWORLD_KEY", "")
+ONBID_KEY = os.environ.get("ONBID_KEY", "").strip()
+VWORLD_KEY = os.environ.get("VWORLD_KEY", "").strip()
 DOMAIN = os.environ.get("VWORLD_DOMAIN", "")
 MAX_LOOKUPS = int(os.environ.get("MAX_LOOKUPS", "3000") or 3000)
 ONBID_URL = "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2"
@@ -26,8 +26,16 @@ CONFLICT = ("저촉", "접합")
 
 def http_get(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=90) as r:
-        return r.read().decode("utf-8", errors="replace")
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return r.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")[:400]
+        except Exception:
+            pass
+        raise RuntimeError("HTTP %s %s | %s" % (e.code, e.reason, body.replace("\n", " ")))
 
 
 def find_items(node):
@@ -213,6 +221,12 @@ def has(words, text):
 
 
 def main():
+    print("키 길이: 온비드 %d자, 브이월드 %d자" % (len(ONBID_KEY), len(VWORLD_KEY)))
+    try:
+        ip = http_get("https://api.ipify.org")
+        print("실행 서버 IP:", ip)
+    except Exception as e:
+        print("IP 확인 실패:", str(e)[:100])
     if not ONBID_KEY or not VWORLD_KEY:
         sys.exit("ONBID_KEY, VWORLD_KEY 가 설정되지 않았습니다 (GitHub Settings > Secrets).")
     now_dt = datetime.datetime.now(KST)
