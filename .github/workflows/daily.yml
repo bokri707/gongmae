@@ -1,6 +1,5 @@
-yaml
 name: daily-update
-"on":
+on:
   schedule:
     - cron: "0 20 * * *"
   workflow_dispatch:
