@@ -1,0 +1,30 @@
+yaml
+name: 매일 공매 갱신
+on:
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 데이터 갱신
+        env:
+          ONBID_KEY: ${{ secrets.ONBID_KEY }}
+          VWORLD_KEY: ${{ secrets.VWORLD_KEY }}
+          VWORLD_DOMAIN: ${{ secrets.VWORLD_DOMAIN }}
+        run: python update.py
+      - name: 결과 저장
+        run: |
+          git config user.name "gongmae-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add docs cache
+          git diff --cached --quiet || git commit -m "daily update"
+          git push
