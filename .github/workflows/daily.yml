@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Update data
+        shell: cmd
         env:
           ONBID_KEY: ${{ secrets.ONBID_KEY }}
           VWORLD_KEY: ${{ secrets.VWORLD_KEY }}
@@ -19,4 +20,5 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python update.py
       - name: Save result
+        shell: cmd
         run: python save.py
