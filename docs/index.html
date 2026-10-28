@@ -51,7 +51,12 @@ button{font:inherit;cursor:pointer}
 .meta b{color:var(--fg);font-family:var(--f-num);font-size:15px}
 .meta select{width:auto;padding:6px 8px;font-size:13px}
 .list{display:grid;gap:12px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;min-width:0}
+.card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;min-width:0}
+.card>div:first-of-type{padding-right:38px}
+.star{position:absolute;top:6px;right:6px;width:40px;height:40px;border:0;background:transparent;color:var(--muted);border-radius:8px;display:grid;place-items:center;padding:0}
+.star svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+.star[aria-pressed=true]{color:#d99a0b}
+.star[aria-pressed=true] svg{fill:currentColor}
 .addr{font-weight:700;font-size:15px;line-height:1.4;overflow-wrap:anywhere}
 .loc{font-size:12px;color:var(--muted)}
 .tags{display:flex;flex-wrap:wrap;gap:5px}
@@ -141,6 +146,10 @@ var ZONES=['계획관리지역','자연녹지지역','도시지역','생산관�
 var STS=['입찰준비중','입찰진행중'];
 var EX=[{k:'e0',l:'도로 저촉·접합',f:function(d){return !!d.fl[0]}},{k:'e1',l:'개발·정비구역',f:function(d){return !!d.fl[1]}},
  {k:'e2',l:'도시계획시설',f:function(d){return !!d.fl[2]}},{k:'e3',l:'토지거래허가구역',f:function(d){return !!d.fl[3]}}];
+var FAV={};
+try{FAV=JSON.parse(localStorage.getItem('gm-fav')||'{}')||{}}catch(e){FAV={}}
+function saveFav(){try{localStorage.setItem('gm-fav',JSON.stringify(FAV))}catch(e){}}
+function favCount(){var n=0;DATA.forEach(function(d){if(FAV[d.id])n++});return n}
 var S={road:{},zone:{},jm:{},st:{},ex:{},inc:{},sido:'',pmin:'',pmax:'',amin:'',amax:'',q:'',sort:'end'};
 var shown=30;
 function cnt(fn){var n=0;DATA.forEach(function(d){if(fn(d))n++});return n}
@@ -155,6 +164,7 @@ ZONES.forEach(function(z){chip($('g-zone'),z,cnt(function(d){return d.z.indexOf(
 JMS.forEach(function(j){chip($('g-jm'),j,jmCounts[j],'jm',j)});
 STS.forEach(function(s){chip($('g-st'),s,cnt(function(d){return d.st===s}),'st',s)});
 EX.forEach(function(e){chip($('g-ex'),e.l+' 제외',cnt(e.f),'ex',e.k)});
+var favChip=chip($('quick'),'★ 즐겨찾기',favCount(),'inc','fv');
 chip($('quick'),'공공사업 후보',cnt(function(d){return !!d.fl[4]}),'inc','pb');
 ['mj','w8'].forEach(function(k){var r=ROADS.filter(function(x){return x.k===k})[0];chip($('quick'),r.l,cnt(r.f),'road',k)});
 ['계획관리지역','자연녹지지역','도시지역'].forEach(function(z){chip($('quick'),z,cnt(function(d){return d.z.indexOf(z)>-1}),'zone',z)});
@@ -183,6 +193,7 @@ function filtered(){
     if(ss.length&&ss.indexOf(d.st)<0)return false;
     if(ef.some(function(e){return e.f(d)}))return false;
     if(S.inc.pb&&!d.fl[4])return false;
+    if(S.inc.fv&&!FAV[d.id])return false;
     if(S.sido&&d.s!==S.sido)return false;
     if(pmin!==null&&d.lp<pmin)return false;if(pmax!==null&&d.lp>pmax)return false;
     if(amin!==null&&d.ar<amin)return false;if(amax!==null&&d.ar>amax)return false;
@@ -206,7 +217,8 @@ function card(d){
   if(d.fl[3])tags+='<span class="tag warn">토지거래허가</span>';
   if(d.fl[4])tags+='<span class="tag warn" title="'+esc(d.fl[4])+'">공공사업 후보</span>';
   var addr=encodeURIComponent(d.nm.replace(/\s(대|전|답|임야|잡종지|도로|하천|묘지|공원|주차장|과수원|목장용지|공장용지|기타토지|유지|염전|토지)$/,''));
-  return '<article class="card"><div><div class="loc">'+esc(d.s)+' '+esc(d.g)+' · '+esc(d.kd)+' · '+esc(d.st)+'</div><div class="addr">'+esc(d.nm)+'</div></div>'
+  var fav=!!FAV[d.id];
+  return '<article class="card"><button type="button" class="star" data-fav="'+d.id+'" aria-pressed="'+fav+'" aria-label="즐겨찾기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1L3.2 9.6l6.1-.8z"/></svg></button><div><div class="loc">'+esc(d.s)+' '+esc(d.g)+' · '+esc(d.kd)+' · '+esc(d.st)+'</div><div class="addr">'+esc(d.nm)+'</div></div>'
    +'<div class="tags">'+tags+'</div>'
    +'<div class="price"><div class="lp"><small>최저입찰가</small>'+won(d.lp)+'</div><div class="sd">'+(d.ap?'감정가 '+won(d.ap)+'<br>':'')+'유찰 '+d.fb+'회</div></div>'
    +'<dl><div><dt>면적</dt><dd>'+d.ar.toLocaleString()+'㎡ ('+(d.ar/3.3058).toFixed(1)+'평)</dd></div>'
@@ -218,10 +230,15 @@ function card(d){
    +'<button type="button" data-id="'+d.id+'">관리번호 복사</button></div></article>'}
 function render(){
   var rs=filtered();$('cnt').textContent=rs.length.toLocaleString();
-  $('list').innerHTML=rs.length?rs.slice(0,shown).map(card).join(''):'<div class="empty">조건에 맞는 땅이 없습니다.<br>필터를 줄여 보세요.</div>';
+  $('list').innerHTML=rs.length?rs.slice(0,shown).map(card).join(''):'<div class="empty">'+(S.inc.fv?'즐겨찾기한 물건이 없습니다.<br>카드 오른쪽 위 별을 눌러 담아 보세요.':'조건에 맞는 땅이 없습니다.<br>필터를 줄여 보세요.')+'</div>';
   $('more').hidden=rs.length<=shown;$('more').textContent='더 보기 ('+Math.min(shown,rs.length)+' / '+rs.length+')'}
 $('more').onclick=function(){shown+=30;render()};
-$('list').onclick=function(e){var b=e.target.closest('button[data-id]');if(!b)return;var id=b.dataset.id;
+$('list').onclick=function(e){
+  var st=e.target.closest('button[data-fav]');
+  if(st){var fid=st.dataset.fav;if(FAV[fid])delete FAV[fid];else FAV[fid]=1;saveFav();
+    var sm=favChip.querySelector('small');if(sm)sm.textContent=favCount();
+    if(S.inc.fv){render()}else{st.setAttribute('aria-pressed',FAV[fid]?'true':'false')}return}
+  var b=e.target.closest('button[data-id]');if(!b)return;var id=b.dataset.id;
   var done=function(t){b.textContent=t;setTimeout(function(){b.textContent='관리번호 복사'},1500)};
   try{navigator.clipboard.writeText(id).then(function(){done('복사됨')},function(){done(id)})}catch(x){done(id)}};
 $('q').oninput=function(){S.q=this.value;shown=30;render()};
