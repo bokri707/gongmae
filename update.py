@@ -22,6 +22,13 @@ DEV_WORDS = ["정비구역", "재개발", "재건축", "재정비촉진", "정�
              "지구단위", "도시재생", "주거환경개선", "역세권", "혁신도시", "경제자유구역", "보금자리", "개발사업"]
 FAC_WORDS = ["공원", "학교", "광장", "유수지", "하수", "공공청사", "운동장", "문화시설", "주차장", "체육시설", "시장", "도시계획시설", "공공용지", "저수"]
 CONFLICT = ("저촉", "접합")
+# 시·군이 직접 시행하는 경우가 많은 공공사업 (토지이용계획 이름에서 찾는다)
+PUBLIC_WORDS = ["도시계획시설", "도시ㆍ군계획시설", "공원", "유원지", "광장", "주차장", "공공청사", "학교", "문화시설", "체육시설",
+                "도서관", "박물관", "하수도", "하수종말", "폐기물", "장사시설", "묘지", "화장", "시장", "하천", "소하천", "유수지", "저수지",
+                "관광지", "관광단지", "농공단지", "산업단지", "도시첨단", "도시개발", "정비구역", "정비사업", "재개발", "재건축",
+                "도시재생", "소규모주택정비", "택지개발", "녹지", "도로", "소로", "중로", "대로", "광로"]
+# 용도지역이거나 사업이 아닌 구역 이름은 뺀다
+PUBLIC_EXCLUDE = ["녹지지역", "정화구역", "처리구역", "보호구역", "제한구역", "시장정비구역외", "관리지역", "주거지역", "상업지역", "공업지역"]
 
 
 def http_get(url):
@@ -288,6 +295,8 @@ def main():
         dev_f = "; ".join(n for n, c in uitems if has(DEV_WORDS, n))
         fac_f = "; ".join("%s[%s]" % (n, c) for n, c in uitems if has(FAC_WORDS, n))
         perm_f = "; ".join(n for n, c in uitems if "토지거래" in n)
+        pub_f = "; ".join(n for n, c in uitems if has(PUBLIC_WORDS, n) and not has(PUBLIC_EXCLUDE, n)
+                          and (c in CONFLICT or c == "포함"))
         mid = r["cltrMngNo"]
         seen.setdefault(mid, today)
         try:
@@ -303,7 +312,7 @@ def main():
                     "ap": won(r, "apslEvlAmt"), "lp": won(r, "lowstBidPrcIndctCont"), "fb": int(r.get("usbdNft") or 0),
                     "kd": r.get("prptDivNm", ""), "st": r.get("pbctStatNm", ""), "en": r.get("cltrBidEndDt", ""),
                     "rd": rd.get("road", "") if got_road else "", "gp": gp, "z": z,
-                    "fl": [road_f, dev_f, fac_f, perm_f], "pnu": pnu, "nw": seen[mid],
+                    "fl": [road_f, dev_f, fac_f, perm_f, pub_f], "pnu": pnu, "nw": seen[mid],
                     "ck": int(got_road) + 2 * int(got_use)})
     seen = {k: v for k, v in seen.items() if k in {o["id"] for o in out}}
     json.dump(seen, open("cache/seen.json", "w", encoding="utf-8"), ensure_ascii=False)
