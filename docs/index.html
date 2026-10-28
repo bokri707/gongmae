@@ -141,7 +141,7 @@ var ZONES=['계획관리지역','자연녹지지역','도시지역','생산관�
 var STS=['입찰준비중','입찰진행중'];
 var EX=[{k:'e0',l:'도로 저촉·접합',f:function(d){return !!d.fl[0]}},{k:'e1',l:'개발·정비구역',f:function(d){return !!d.fl[1]}},
  {k:'e2',l:'도시계획시설',f:function(d){return !!d.fl[2]}},{k:'e3',l:'토지거래허가구역',f:function(d){return !!d.fl[3]}}];
-var S={road:{},zone:{},jm:{},st:{},ex:{},sido:'',pmin:'',pmax:'',amin:'',amax:'',q:'',sort:'end'};
+var S={road:{},zone:{},jm:{},st:{},ex:{},inc:{},sido:'',pmin:'',pmax:'',amin:'',amax:'',q:'',sort:'end'};
 var shown=30;
 function cnt(fn){var n=0;DATA.forEach(function(d){if(fn(d))n++});return n}
 function chip(parent,label,n,group,key){
@@ -155,6 +155,7 @@ ZONES.forEach(function(z){chip($('g-zone'),z,cnt(function(d){return d.z.indexOf(
 JMS.forEach(function(j){chip($('g-jm'),j,jmCounts[j],'jm',j)});
 STS.forEach(function(s){chip($('g-st'),s,cnt(function(d){return d.st===s}),'st',s)});
 EX.forEach(function(e){chip($('g-ex'),e.l+' 제외',cnt(e.f),'ex',e.k)});
+chip($('quick'),'공공사업 후보',cnt(function(d){return !!d.fl[4]}),'inc','pb');
 ['mj','w8'].forEach(function(k){var r=ROADS.filter(function(x){return x.k===k})[0];chip($('quick'),r.l,cnt(r.f),'road',k)});
 ['계획관리지역','자연녹지지역','도시지역'].forEach(function(z){chip($('quick'),z,cnt(function(d){return d.z.indexOf(z)>-1}),'zone',z)});
 JMS.slice(0,12).forEach(function(j){chip($('quick2'),j,jmCounts[j],'jm',j)});
@@ -162,7 +163,7 @@ var sidos=[];DATA.forEach(function(d){if(sidos.indexOf(d.s)<0)sidos.push(d.s)});
 $('sido').innerHTML='<option value="">전국</option>'+sidos.map(function(s){return '<option>'+s+'</option>'}).join('');
 function sync(){
   document.querySelectorAll('.chip').forEach(function(b){b.setAttribute('aria-pressed',S[b.dataset.g][b.dataset.k]?'true':'false')});
-  var n=0;['road','zone','jm','st','ex'].forEach(function(g){for(var k in S[g])if(S[g][k])n++});
+  var n=0;['road','zone','jm','st','ex','inc'].forEach(function(g){for(var k in S[g])if(S[g][k])n++});
   ['sido','pmin','pmax','amin','amax'].forEach(function(k){if(S[k])n++});
   $('fc').textContent=n?'('+n+')':''}
 function sel(g){return Object.keys(S[g]).filter(function(k){return S[g][k]})}
@@ -181,6 +182,7 @@ function filtered(){
     if(js.length&&js.indexOf(d.jm)<0)return false;
     if(ss.length&&ss.indexOf(d.st)<0)return false;
     if(ef.some(function(e){return e.f(d)}))return false;
+    if(S.inc.pb&&!d.fl[4])return false;
     if(S.sido&&d.s!==S.sido)return false;
     if(pmin!==null&&d.lp<pmin)return false;if(pmax!==null&&d.lp>pmax)return false;
     if(amin!==null&&d.ar<amin)return false;if(amax!==null&&d.ar>amax)return false;
@@ -202,6 +204,7 @@ function card(d){
   if(d.fl[1])tags+='<span class="tag warn">개발·정비구역</span>';
   if(d.fl[2])tags+='<span class="tag warn">도시계획시설</span>';
   if(d.fl[3])tags+='<span class="tag warn">토지거래허가</span>';
+  if(d.fl[4])tags+='<span class="tag warn" title="'+esc(d.fl[4])+'">공공사업 후보</span>';
   var addr=encodeURIComponent(d.nm.replace(/\s(대|전|답|임야|잡종지|도로|하천|묘지|공원|주차장|과수원|목장용지|공장용지|기타토지|유지|염전|토지)$/,''));
   return '<article class="card"><div><div class="loc">'+esc(d.s)+' '+esc(d.g)+' · '+esc(d.kd)+' · '+esc(d.st)+'</div><div class="addr">'+esc(d.nm)+'</div></div>'
    +'<div class="tags">'+tags+'</div>'
@@ -228,7 +231,7 @@ $('sido').onchange=function(){S.sido=this.value;sync()};
 function openS(o){$('sheet').hidden=!o;$('scrim').hidden=!o}
 $('openF').onclick=function(){openS(true)};$('closeF').onclick=$('scrim').onclick=function(){openS(false)};
 $('apply').onclick=function(){shown=30;render();openS(false);window.scrollTo(0,0)};
-$('reset').onclick=function(){['road','zone','jm','st','ex'].forEach(function(g){S[g]={}});
+$('reset').onclick=function(){['road','zone','jm','st','ex','inc'].forEach(function(g){S[g]={}});
   S.sido=S.pmin=S.pmax=S.amin=S.amax='';$('sido').value='';['pmin','pmax','amin','amax'].forEach(function(k){$(k).value=''});sync();shown=30;render()};
 sync();render();
 }
